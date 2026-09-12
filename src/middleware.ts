@@ -10,7 +10,11 @@ export default async function middleware(req: NextRequest) {
 
   if (!isDashboard) return NextResponse.next();
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+  });
   const isLoggedIn = !!token;
 
   if (!isLoggedIn) {
