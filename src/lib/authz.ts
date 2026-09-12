@@ -80,21 +80,21 @@ export async function assertCanAccessProject(projectId: string) {
 /** Scopes a Prisma `where` clause for list endpoints so an agent only ever queries their own rows. */
 export function leadScope(session: Awaited<ReturnType<typeof requireSession>>) {
   if (session.user.role === "ADMIN") return {};
-  if (session.user.role === "AGENT") return { agentId: session.user.agentId };
+  if (session.user.role === "AGENT") return { agentId: session.user.agentId ?? undefined };
   throw new AuthzError("Clients cannot list leads", 403);
 }
 
 export function clientScope(session: Awaited<ReturnType<typeof requireSession>>) {
   if (session.user.role === "ADMIN") return {};
-  if (session.user.role === "AGENT") return { assignedAgentId: session.user.agentId };
-  if (session.user.role === "CLIENT") return { id: session.user.clientId };
+  if (session.user.role === "AGENT") return { assignedAgentId: session.user.agentId ?? undefined };
+  if (session.user.role === "CLIENT") return { id: session.user.clientId ?? undefined };
   return {};
 }
 
 export function projectScope(session: Awaited<ReturnType<typeof requireSession>>) {
   if (session.user.role === "ADMIN") return {};
-  if (session.user.role === "AGENT") return { assignedAgentId: session.user.agentId };
-  if (session.user.role === "CLIENT") return { clientId: session.user.clientId };
+  if (session.user.role === "AGENT") return { assignedAgentId: session.user.agentId ?? undefined };
+  if (session.user.role === "CLIENT") return { clientId: session.user.clientId ?? undefined };
   return {};
 }
 
