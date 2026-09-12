@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/*
+  Design tokens — institutional/admission-portal register.
+  Color:  --navy (#0E3A5F) primary / header bar, --navy-deep (#092642) for
+          active states, --slate-bg (#F2F4F7) page background, --gold (#B7862B)
+          for status/accent (mirrors the amber used on govt admission ERPs),
+          --line (#D8DEE6) hairline borders, --ink (#1B2430) body text.
+  Type:   Single family (Inter) — dense, legible at small sizes for tables and
+          forms; no serif display needed for this register.
+  Layout: Fixed left sidebar + top bar, left-aligned dense content, square
+          corners on structural chrome (sidebar, table headers), small radius
+          only on interactive controls (buttons/inputs).
+*/
+
+:root {
+  --navy: #0e3a5f;
+  --navy-deep: #092642;
+  --slate-bg: #f2f4f7;
+  --panel: #ffffff;
+  --gold: #b7862b;
+  --line: #d8dee6;
+  --ink: #1b2430;
+  --ink-muted: #5b6675;
+  --danger: #b3261e;
+  --success: #1e6b3c;
+}
+
+@theme inline {
+  --color-background: var(--slate-bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--slate-bg);
+  color: var(--ink);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px 1fr;
+}
+
+.app-sidebar {
+  background: var(--navy);
+  color: #e7edf3;
+}
+
+.app-sidebar .brand {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-nav a {
+  display: block;
+  padding: 9px 20px;
+  font-size: 13.5px;
+  color: #cdd9e5;
+  border-left: 3px solid transparent;
+}
+
+.app-nav a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.app-nav a.active {
+  background: var(--navy-deep);
+  color: #ffffff;
+  border-left-color: var(--gold);
+}
+
+.app-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: left;
+  background: #eef1f5;
+  color: var(--ink-muted);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.data-table tr:hover td {
+  background: #f8fafc;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+.btn-primary {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 3px;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--navy-deep);
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--navy);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.field-input {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  width: 100%;
+  background: #fff;
+}
+
+.field-input:focus {
+  outline: 2px solid var(--navy);
+  outline-offset: 1px;
+}
+
+.field-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+  display: block;
+}

@@ -1,0 +1,375 @@
+// ============================================================================
+// Prisma schema — Agency Management Platform
+// Phase 1 scope: Auth, RBAC, Leads, Clients, Projects, Milestones, Documents,
+// Audit Log, and the foundational tables for Proposals/Commissions/Payments
+// so later phases attach without a schema rewrite.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth & Roles
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  AGENT
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  INVITED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String?
+  name          String
+  phone         String?
+  image         String?
+  role          Role
+  status        UserStatus @default(ACTIVE)
+  emailVerified DateTime?
+
+  // Role-specific profile rows (only one will be populated based on `role`)
+  agentProfile  Agent?
+  clientProfile Client?
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs      AuditLog[]      @relation("AuditActor")
+  notifications  Notification[]
+  uploadedDocs   Document[]      @relation("DocumentUploader")
+
+  @@index([role])
+  @@index([status])
+}
+
+// NextAuth (Auth.js) required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Agents
+// ---------------------------------------------------------------------------
+
+model Agent {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation   String?
+  territories   String[]   @default([])
+  notes         String?    @db.Text
+
+  leads         Lead[]
+  clients       Client[]   @relation("AssignedAgent")
+  projects      Project[]  @relation("AssignedAgentProject")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+
+model Client {
+  id                String   @id @default(cuid())
+  userId            String?  @unique // set once the client has a login
+  user              User?    @relation(fields: [userId], references: [id])
+
+  name              String
+  email             String   @unique
+  phone             String?
+  company           String?
+  country           String?
+  preferredLanguage String   @default("en")
+
+  assignedAgentId String?
+  assignedAgent   Agent?  @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+
+  leadId String? @unique
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  projects  Project[]
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assignedAgentId])
+}
+
+// ---------------------------------------------------------------------------
+// Leads
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  REPLIED
+  QUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+  CONVERTED
+}
+
+model Lead {
+  id       String     @id @default(cuid())
+  name     String
+  email    String
+  phone    String?
+  company  String?
+  country  String?
+  website  String?
+  industry String?
+  source   String?
+  notes    String?    @db.Text
+  status   LeadStatus @default(NEW)
+  score    Int        @default(0)
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  convertedClient Client?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  SUBMITTED
+  PAYMENT_PENDING
+  PAYMENT_RECEIVED
+  WAITING_FOR_REVIEW
+  ACCEPTED
+  REJECTED
+  PLANNING
+  UI_UX
+  DEVELOPMENT
+  TESTING
+  CLIENT_REVIEW
+  FINAL_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id])
+
+  assignedAgentId String?
+  assignedAgent   Agent?  @relation("AssignedAgentProject", fields: [assignedAgentId], references: [id])
+
+  projectType    String
+  description    String   @db.Text
+  requirements   String?  @db.Text
+  targetAudience String?
+  deadline       DateTime?
+  budgetEstimate Decimal? @db.Decimal(12, 2)
+  referenceUrls  String[] @default([])
+
+  technologies   String[] @default([])
+
+  totalValue    Decimal? @db.Decimal(12, 2)
+  advanceAmount Decimal? @db.Decimal(12, 2)
+  currency      String   @default("INR")
+
+  status        ProjectStatus @default(SUBMITTED)
+
+  milestones      Milestone[]
+  documents       Document[]
+  statusHistory   ProjectStatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([assignedAgentId])
+  @@index([status])
+}
+
+model ProjectStatusHistory {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromStatus ProjectStatus?
+  toStatus   ProjectStatus
+  changedById String
+  note       String?      @db.Text
+  createdAt  DateTime     @default(now())
+
+  @@index([projectId])
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED_FOR_APPROVAL
+  APPROVED
+  CHANGES_REQUESTED
+  COMPLETED
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?         @db.Text
+  percentage  Int
+  startDate   DateTime?
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PENDING)
+  requiresClientApproval Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------
+// Documents (metadata only — binary lives in object storage)
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  REQUIREMENT
+  BRAND_ASSET
+  PROPOSAL
+  INVOICE
+  CONTRACT
+  REPORT
+  SOURCE_DELIVERABLE
+  OTHER
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  filename     String
+  storageKey   String       // key/path in the object storage bucket, never a public URL
+  mimeType     String
+  sizeBytes    Int
+  documentType DocumentType @default(OTHER)
+  version      Int          @default(1)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  clientId String?
+  client   Client?  @relation(fields: [clientId], references: [id])
+
+  uploadedById String
+  uploadedBy   User   @relation("DocumentUploader", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type    String
+  title   String
+  body    String?  @db.Text
+  read    Boolean  @default(false)
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log (append-only)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorRole  Role
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Settings (single-row key/value platform config, e.g. commission defaults)
+// ---------------------------------------------------------------------------
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
